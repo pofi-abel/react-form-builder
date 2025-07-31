@@ -3,6 +3,7 @@ import { FormRenderer } from "@/components/FormRenderer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { FormConfig, FormResponse } from "@/types/form";
+import { Copy, Check } from "lucide-react";
 
 // Sample form configuration that would be exported from the form builder
 const sampleFormConfig: FormConfig = {
@@ -186,6 +187,7 @@ export const FormRendererDemo: React.FC = () => {
   const [selectedForm, setSelectedForm] = useState<"medical" | "feedback">("medical");
   const [showJson, setShowJson] = useState(false);
   const [submittedResponses, setSubmittedResponses] = useState<FormResponse | null>(null);
+  const [copiedResponseJson, setCopiedResponseJson] = useState(false);
 
   const currentFormConfig = selectedForm === "medical" ? sampleFormConfig : simpleFormConfig;
 
@@ -194,9 +196,55 @@ export const FormRendererDemo: React.FC = () => {
     setSubmittedResponses(responses);
   };
 
+  const copyResponseJsonToClipboard = async () => {
+    if (!submittedResponses) return;
+    
+    try {
+      // Create a formatted response object with question details for admin view
+      const adminResponseView = {
+        formId: currentFormConfig.id,
+        formTitle: currentFormConfig.title,
+        submissionTimestamp: new Date().toISOString(),
+        responses: Object.entries(submittedResponses).map(([questionId, value]) => {
+          // Find the question details
+          let questionDetails = null;
+          for (const step of currentFormConfig.steps) {
+            const question = step.questions.find(q => q.id === questionId);
+            if (question) {
+              questionDetails = {
+                id: question.id,
+                type: question.type,
+                title: question.title,
+                required: question.required,
+                stepTitle: step.title
+              };
+              break;
+            }
+          }
+          
+          return {
+            questionId,
+            question: questionDetails,
+            value,
+            displayValue: Array.isArray(value) ? value.join(', ') : value
+          };
+        }),
+        rawResponses: submittedResponses
+      };
+      
+      const jsonString = JSON.stringify(adminResponseView, null, 2);
+      await navigator.clipboard.writeText(jsonString);
+      setCopiedResponseJson(true);
+      setTimeout(() => setCopiedResponseJson(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy response JSON:", err);
+    }
+  };
+
   const resetDemo = () => {
     setSubmittedResponses(null);
     setShowJson(false);
+    setCopiedResponseJson(false);
   };
 
   return (
@@ -253,11 +301,64 @@ export const FormRendererDemo: React.FC = () => {
         {submittedResponses && (
           <Card>
             <CardHeader>
-              <CardTitle>Submitted Responses</CardTitle>
-              <p className="text-sm text-muted-foreground">This shows the data that would be collected from the form submission.</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Submitted Responses</CardTitle>
+                  <p className="text-sm text-muted-foreground">This shows the data that would be collected from the form submission.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={copyResponseJsonToClipboard} className="flex items-center gap-2" disabled={copiedResponseJson}>
+                  {copiedResponseJson ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copiedResponseJson ? "Copied!" : "Copy Admin View"}
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent>
-              <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 font-mono">{JSON.stringify(submittedResponses, null, 2)}</pre>
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="text-sm font-medium mb-2">Raw Response Data:</h4>
+                <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 font-mono">{JSON.stringify(submittedResponses, null, 2)}</pre>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium mb-2">Admin View (with question details and metadata):</h4>
+                <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 font-mono">{JSON.stringify(
+                  {
+                    formId: currentFormConfig.id,
+                    formTitle: currentFormConfig.title,
+                    submissionTimestamp: new Date().toISOString(),
+                    responses: Object.entries(submittedResponses).map(([questionId, value]) => {
+                      // Find the question details
+                      let questionDetails = null;
+                      for (const step of currentFormConfig.steps) {
+                        const question = step.questions.find(q => q.id === questionId);
+                        if (question) {
+                          questionDetails = {
+                            id: question.id,
+                            type: question.type,
+                            title: question.title,
+                            required: question.required,
+                            stepTitle: step.title
+                          };
+                          break;
+                        }
+                      }
+                      
+                      return {
+                        questionId,
+                        question: questionDetails,
+                        value,
+                        displayValue: Array.isArray(value) ? value.join(', ') : value
+                      };
+                    }),
+                    summary: {
+                      totalQuestions: Object.keys(submittedResponses).length,
+                      formType: currentFormConfig.isMultiStep ? 'multi-step' : 'single-step',
+                      stepsCompleted: currentFormConfig.steps.length
+                    },
+                    rawResponses: submittedResponses
+                  },
+                  null,
+                  2
+                )}</pre>
+              </div>
             </CardContent>
           </Card>
         )}

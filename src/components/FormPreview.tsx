@@ -57,7 +57,9 @@ export const FormPreview: React.FC<FormPreviewProps> = ({ formConfig }) => {
   const [responses, setResponses] = useState<FormResponse>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
+  const [copiedResponseJson, setCopiedResponseJson] = useState(false);
   const [showJsonViewer, setShowJsonViewer] = useState(false);
+  const [showResponseViewer, setShowResponseViewer] = useState(false);
 
   const currentStep = formConfig.steps[currentStepIndex];
   const visibleQuestions = currentStep?.questions.filter((question) => evaluateConditionalLogic(question, responses)) || [];
@@ -123,6 +125,49 @@ export const FormPreview: React.FC<FormPreviewProps> = ({ formConfig }) => {
       setTimeout(() => setCopiedJson(false), 2000);
     } catch (err) {
       console.error("Failed to copy JSON:", err);
+    }
+  };
+
+  const copyResponseJsonToClipboard = async () => {
+    try {
+      // Create a formatted response object with question details for admin view
+      const adminResponseView = {
+        formId: formConfig.id,
+        formTitle: formConfig.title,
+        submissionTimestamp: new Date().toISOString(),
+        responses: Object.entries(responses).map(([questionId, value]) => {
+          // Find the question details
+          let questionDetails = null;
+          for (const step of formConfig.steps) {
+            const question = step.questions.find(q => q.id === questionId);
+            if (question) {
+              questionDetails = {
+                id: question.id,
+                type: question.type,
+                title: question.title,
+                required: question.required,
+                stepTitle: step.title
+              };
+              break;
+            }
+          }
+          
+          return {
+            questionId,
+            question: questionDetails,
+            value,
+            displayValue: Array.isArray(value) ? value.join(', ') : value
+          };
+        }),
+        rawResponses: responses
+      };
+      
+      const jsonString = JSON.stringify(adminResponseView, null, 2);
+      await navigator.clipboard.writeText(jsonString);
+      setCopiedResponseJson(true);
+      setTimeout(() => setCopiedResponseJson(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy response JSON:", err);
     }
   };
 
@@ -239,6 +284,74 @@ export const FormPreview: React.FC<FormPreviewProps> = ({ formConfig }) => {
             </Button>
           )}
         </div>
+
+        {/* Form Responses Viewer */}
+        {Object.keys(responses).length > 0 && (
+          <Card className="border-dashed">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">Form Responses (JSON)</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setShowResponseViewer(!showResponseViewer)} className="flex items-center gap-2">
+                    {showResponseViewer ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showResponseViewer ? "Hide" : "Show"} Responses
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={copyResponseJsonToClipboard} className="flex items-center gap-2" disabled={copiedResponseJson}>
+                    {copiedResponseJson ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copiedResponseJson ? "Copied!" : "Copy Responses"}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            {showResponseViewer && (
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Current User Responses:</h4>
+                    <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 font-mono">{JSON.stringify(responses, null, 2)}</pre>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Admin View (with question details):</h4>
+                    <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 font-mono">{JSON.stringify(
+                      {
+                        formId: formConfig.id,
+                        formTitle: formConfig.title,
+                        submissionTimestamp: new Date().toISOString(),
+                        responses: Object.entries(responses).map(([questionId, value]) => {
+                          // Find the question details
+                          let questionDetails = null;
+                          for (const step of formConfig.steps) {
+                            const question = step.questions.find(q => q.id === questionId);
+                            if (question) {
+                              questionDetails = {
+                                id: question.id,
+                                type: question.type,
+                                title: question.title,
+                                required: question.required,
+                                stepTitle: step.title
+                              };
+                              break;
+                            }
+                          }
+                          
+                          return {
+                            questionId,
+                            question: questionDetails,
+                            value,
+                            displayValue: Array.isArray(value) ? value.join(', ') : value
+                          };
+                        }),
+                        rawResponses: responses
+                      },
+                      null,
+                      2
+                    )}</pre>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        )}
 
         {/* JSON Configuration Viewer */}
         <Card className="border-dashed">
