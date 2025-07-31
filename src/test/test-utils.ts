@@ -1,4 +1,4 @@
-import type { FormConfig, Question, Step, ConditionalLogic, FormResponse } from "../types/form";
+import type { FormConfig, Question, Step, ConditionalLogic } from "../types/form";
 
 // Test utilities for creating mock form data
 export const createMockQuestion = (overrides: Partial<Question> = {}): Question => ({

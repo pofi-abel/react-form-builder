@@ -27,7 +27,7 @@ describe("FormBuilder Step Reordering", () => {
     expect(screen.getByText("Contact Details")).toBeInTheDocument();
 
     // Should have grip handles for dragging - look for GripVertical SVG elements
-    const gripHandles = screen.container.querySelectorAll('[class*="lucide-grip-vertical"]');
+    const gripHandles = document.querySelectorAll('[class*="lucide-grip-vertical"]');
     expect(gripHandles.length).toBeGreaterThan(0);
   });
 
