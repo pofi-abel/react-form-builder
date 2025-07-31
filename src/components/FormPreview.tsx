@@ -60,6 +60,7 @@ export const FormPreview: React.FC<FormPreviewProps> = ({ formConfig }) => {
   const [copiedResponseJson, setCopiedResponseJson] = useState(false);
   const [showJsonViewer, setShowJsonViewer] = useState(false);
   const [showResponseViewer, setShowResponseViewer] = useState(false);
+  const [responseViewMode, setResponseViewMode] = useState<'table' | 'json'>('table');
 
   const currentStep = formConfig.steps[currentStepIndex];
   const visibleQuestions = currentStep?.questions.filter((question) => evaluateConditionalLogic(question, responses)) || [];
@@ -290,64 +291,167 @@ export const FormPreview: React.FC<FormPreviewProps> = ({ formConfig }) => {
           <Card className="border-dashed">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Form Responses (JSON)</CardTitle>
+                <CardTitle className="text-sm">Form Responses</CardTitle>
                 <div className="flex items-center gap-2">
+                  <div className="flex items-center border rounded-md">
+                    <Button
+                      variant={responseViewMode === 'table' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setResponseViewMode('table')}
+                      className="rounded-r-none border-r"
+                    >
+                      Table View
+                    </Button>
+                    <Button
+                      variant={responseViewMode === 'json' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setResponseViewMode('json')}
+                      className="rounded-l-none"
+                    >
+                      JSON View
+                    </Button>
+                  </div>
                   <Button variant="ghost" size="sm" onClick={() => setShowResponseViewer(!showResponseViewer)} className="flex items-center gap-2">
                     {showResponseViewer ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    {showResponseViewer ? "Hide" : "Show"} Responses
+                    {showResponseViewer ? "Hide" : "Show"}
                   </Button>
                   <Button variant="outline" size="sm" onClick={copyResponseJsonToClipboard} className="flex items-center gap-2" disabled={copiedResponseJson}>
                     {copiedResponseJson ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copiedResponseJson ? "Copied!" : "Copy Responses"}
+                    {copiedResponseJson ? "Copied!" : "Copy Data"}
                   </Button>
                 </div>
               </div>
             </CardHeader>
             {showResponseViewer && (
               <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Current User Responses:</h4>
-                    <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 font-mono">{JSON.stringify(responses, null, 2)}</pre>
+                {responseViewMode === 'table' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium mb-4">Response Summary:</h4>
+                      <div className="border rounded-lg overflow-hidden">
+                        <div className="bg-muted p-3 border-b">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div><strong>Form:</strong> {formConfig.title}</div>
+                            <div><strong>Form ID:</strong> {formConfig.id}</div>
+                            <div><strong>Timestamp:</strong> {new Date().toLocaleString()}</div>
+                            <div><strong>Total Responses:</strong> {Object.keys(responses).length}</div>
+                          </div>
+                        </div>
+                        
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50 border-b">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Step</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Question</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Required</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {Object.entries(responses).map(([questionId, value]) => {
+                                // Find the question details
+                                let questionDetails = null;
+                                let stepTitle = '';
+                                for (const step of formConfig.steps) {
+                                  const question = step.questions.find(q => q.id === questionId);
+                                  if (question) {
+                                    questionDetails = question;
+                                    stepTitle = step.title;
+                                    break;
+                                  }
+                                }
+                                
+                                if (!questionDetails) return null;
+                                
+                                const displayValue = Array.isArray(value) ? value.join(', ') : String(value);
+                                
+                                return (
+                                  <tr key={questionId} className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 text-sm text-gray-900">{stepTitle}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">
+                                      <div className="font-medium">{questionDetails.title}</div>
+                                      {questionDetails.description && (
+                                        <div className="text-xs text-gray-500 mt-1">{questionDetails.description}</div>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-500">
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {questionDetails.type}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-500">
+                                      {questionDetails.required ? (
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                          Required
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                          Optional
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">
+                                      <div className="max-w-xs break-words">
+                                        {displayValue || <span className="text-gray-400 italic">No response</span>}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Admin View (with question details):</h4>
-                    <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 font-mono">{JSON.stringify(
-                      {
-                        formId: formConfig.id,
-                        formTitle: formConfig.title,
-                        submissionTimestamp: new Date().toISOString(),
-                        responses: Object.entries(responses).map(([questionId, value]) => {
-                          // Find the question details
-                          let questionDetails = null;
-                          for (const step of formConfig.steps) {
-                            const question = step.questions.find(q => q.id === questionId);
-                            if (question) {
-                              questionDetails = {
-                                id: question.id,
-                                type: question.type,
-                                title: question.title,
-                                required: question.required,
-                                stepTitle: step.title
-                              };
-                              break;
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Current User Responses (Raw JSON):</h4>
+                      <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 font-mono">{JSON.stringify(responses, null, 2)}</pre>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Complete JSON (with metadata):</h4>
+                      <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 font-mono">{JSON.stringify(
+                        {
+                          formId: formConfig.id,
+                          formTitle: formConfig.title,
+                          submissionTimestamp: new Date().toISOString(),
+                          responses: Object.entries(responses).map(([questionId, value]) => {
+                            // Find the question details
+                            let questionDetails = null;
+                            for (const step of formConfig.steps) {
+                              const question = step.questions.find(q => q.id === questionId);
+                              if (question) {
+                                questionDetails = {
+                                  id: question.id,
+                                  type: question.type,
+                                  title: question.title,
+                                  required: question.required,
+                                  stepTitle: step.title
+                                };
+                                break;
+                              }
                             }
-                          }
-                          
-                          return {
-                            questionId,
-                            question: questionDetails,
-                            value,
-                            displayValue: Array.isArray(value) ? value.join(', ') : value
-                          };
-                        }),
-                        rawResponses: responses
-                      },
-                      null,
-                      2
-                    )}</pre>
+                            
+                            return {
+                              questionId,
+                              question: questionDetails,
+                              value,
+                              displayValue: Array.isArray(value) ? value.join(', ') : value
+                            };
+                          }),
+                          rawResponses: responses
+                        },
+                        null,
+                        2
+                      )}</pre>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             )}
           </Card>
