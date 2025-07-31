@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 interface FormRendererProps {
   formConfig: FormConfig;
   onSubmit?: (responses: FormResponse) => void;
+  resetKey?: string | number; // Used to force reset of internal state
 }
 
 interface FormRendererComponentProps {
@@ -164,10 +165,19 @@ const FormRendererComponent: React.FC<FormRendererComponentProps> = ({ question,
   }
 };
 
-export const FormRenderer: React.FC<FormRendererProps> = ({ formConfig, onSubmit }) => {
+export const FormRenderer: React.FC<FormRendererProps> = ({ formConfig, onSubmit, resetKey }) => {
   const [responses, setResponses] = useState<FormResponse>({});
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Reset form state when resetKey changes
+  useEffect(() => {
+    if (resetKey !== undefined) {
+      setResponses({});
+      setCurrentStepIndex(0);
+      setIsSubmitted(false);
+    }
+  }, [resetKey]);
 
   const currentStep = formConfig.steps[currentStepIndex];
   const isLastStep = currentStepIndex === formConfig.steps.length - 1;

@@ -189,6 +189,7 @@ export const FormRendererDemo: React.FC = () => {
   const [submittedResponses, setSubmittedResponses] = useState<FormResponse | null>(null);
   const [copiedResponseJson, setCopiedResponseJson] = useState(false);
   const [responseViewMode, setResponseViewMode] = useState<'table' | 'json'>('table');
+  const [resetKey, setResetKey] = useState<number>(0);
 
   const currentFormConfig = selectedForm === "medical" ? sampleFormConfig : simpleFormConfig;
 
@@ -246,6 +247,7 @@ export const FormRendererDemo: React.FC = () => {
     setSubmittedResponses(null);
     setShowJson(false);
     setCopiedResponseJson(false);
+    setResetKey(prev => prev + 1); // Increment to trigger form reset
   };
 
   return (
@@ -295,7 +297,7 @@ export const FormRendererDemo: React.FC = () => {
         {/* Live Form Renderer */}
         <div>
           <h2 className="text-xl font-semibold mb-4 text-center">Live Form Rendered from JSON</h2>
-          <FormRenderer formConfig={currentFormConfig} onSubmit={handleFormSubmit} />
+          <FormRenderer formConfig={currentFormConfig} onSubmit={handleFormSubmit} resetKey={resetKey} />
         </div>
 
         {/* Submitted Responses Display */}
